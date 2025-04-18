@@ -82,12 +82,12 @@ begin
 	
 	U_decoder: sevenseg_decoder
 	   port map(
-	       i_Hex => w_floor1, --w_mux_o for double
+	       i_Hex => w_mux_o, --w_mux_o for double  w_floor1
 	       o_seg_n => seg
 	       );
 
 	   
-	elevator_control_inst : elevator_controller_fsm
+	elevator_control_inst1 : elevator_controller_fsm
 	   port map(
             i_clk => w_clk,
             i_reset => fsm_reset,
@@ -96,18 +96,27 @@ begin
             o_floor => w_floor1
         );
         
---    display_MUX : TDM4
---     generic map (k_WIDTH => 4)
---        port map (
---            i_clk   => clk,
---            i_reset => btnU,  -- Master reset
---            i_D3    => "1111",  -- unused display: off
---            i_D2    => "1111",--w_seg,  -- unused display: off -- leave unused switches UNCONNECTED. Ignore any warnings this causes.
---            i_D1    => "1111",  -- unused display: off
---            i_D0    => w_seg,   -- rightmost display: current floor
---            o_data  => w_mux_o,
---            o_sel   => w_sel
---        );
+    elevator_control_inst2 : elevator_controller_fsm
+	   port map(
+            i_clk => w_clk,
+            i_reset => fsm_reset,
+            is_stopped => sw(14),
+            go_up_down => sw(15),
+            o_floor => w_floor2
+        );
+        
+    display_MUX : TDM4
+     generic map (k_WIDTH => 4)
+        port map (
+            i_clk   => w_clk_tdm,
+            i_reset => clk_reset,  -- clk reset
+            i_D3    => x"F", --"1111",  -- unused display: off
+            i_D2    => w_floor2,--w_seg,  -- unused display: off -- leave unused switches UNCONNECTED. Ignore any warnings this causes.
+            i_D1    => x"F", --"1111",  -- unused display: off
+            i_D0    => w_floor1,   -- rightmost display: current floor
+            o_data  => w_mux_o,
+            o_sel   => an
+        );
 
 
 	clkdiv_inst : clock_divider
@@ -117,18 +126,27 @@ begin
             i_reset => clk_reset,
             o_clk => w_clk
         ); 
+        
+     clkdiv_inst_TDM : clock_divider
+        generic map (k_DIV => 50000)   -- 100Mhz/50,000 /2
+            port map (
+            i_clk => clk,
+            i_reset => clk_reset,
+            o_clk => w_clk_tdm
+        ); 
 	-- CONCURRENT STATEMENTS ----------------------------
 	--(btnR or btnU) => w_reset;
 	
 	--btnU or btnL => 
 	
-	fsm_reset <= btnR or btnU;
+	fsm_reset <= btnR or btnU; -- fsm
 	
-	clk_reset <= btnU or btnL;
+	clk_reset <= btnU or btnL; -- CLK
+	
 	 -- LED 15 shows FSM clock tick (helpful debug)
     led(15) <= w_clk;
     led(14 downto 0) <= (others => '0');
-    an <= "1110"; -- all but last anode off
+    --an <= "1110"; -- all but last anode off for single elevator
 	-- LED 15 gets the FSM slow clock signal. The rest are grounded.
 	
 	
